@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Property Guru</title>
+  <link rel="stylesheet" href="css/bootstrap.min.css">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/semantic.min.css">
+  <link rel="stylesheet" href="css/dropdown.min.css.min.css">
+</head>
+
+<body>
+  <div class="container">
+    <div class="row">
+      <div class="col-sm-4">
+        <div id="county-dropdown" class="ui fluid search selection dropdown">
+          <input type="hidden" name="county" />
+          <i class="dropdown icon"></i>
+          <div class="default text">Select County</div>
+          <div class="menu">
+          </div>
+        </div>
+        <p>
+          The United States is one of the world’s most attractive locations for real-estate investing. We designed the
+          following data visualizations to help aspiring investors to navigate the landscape of investing in American
+          real estate in a data-driven way. These visualizations leveraged data from the U.S. Census Bureau, Zillow, and
+          the University of Michigan.
+        </p>
+        <p>
+          The adjacent choropleth can be used to explore home prices across the United States by county. Darker shades
+          of blue exhibited by a given county indicate higher mean home prices relative to lighter shades of blue.
+        </p>
+      </div>
+      <div class="col-sm-8">
+        <div id="usChoropleth">
+        </div> <!-- col -->
+      </div> <!-- col -->
+    </div> <!-- row -->
+  </div> <!-- container -->
+  <!-- page content -->
+  <script src="js/jquery-1.11.0.min.js"></script>
+  <script src="js/bootstrap.min.js"></script>
+  <script src="js/semantic.min.js"></script>
+  <script src="js/components/dropdown.min.js"></script>
+  <script src="js/d3.v4.js"></script>
+  <script src="https://d3js.org/d3-color.v1.min.js"></script>
+  <script src="https://d3js.org/d3-interpolate.v1.min.js"></script>
+  <script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
+  <script type="text/javascript" src="https://d3js.org/queue.v1.min.js"></script>
+  <script type="text/javascript" src="https://d3js.org/topojson.v2.min.js"></script>
+  <script src="https://d3js.org/d3-array.v1.min.js"></script>
+  <script src="https://d3js.org/d3-geo.v1.min.js"></script>
+  <script src="js/my-viz.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,22 @@
+body {
+    padding-top: 20px;
+}
+
+div.tooltip {
+    position: absolute;
+    left: 75px;
+    text-align: center;
+    padding: 10px;
+    font-size: 14px;
+    background: #FFFFFF;
+    border: 1px solid #989898;
+    pointer-events: none;
+}
+
+div.tooltip .name {
+    font-weight: bold;
+}
+
+#county-dropdown {
+    margin-bottom: 20px;
+}
