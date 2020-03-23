@@ -3,9 +3,9 @@ $(function () {
     var projection = d3.geoAlbersUsa();
     var usChoroplethSvg = d3.select("#usChoropleth")
         .append("svg")
-        .attr("viewBox", `0 0 900 600`);
+        .attr("viewBox", `0 0 975 610`);
 
-    var selectedCounty = null;
+    var $selectedCounty = null;
 
     queue()
         .defer(d3.json, "data/us.json")
@@ -25,13 +25,21 @@ $(function () {
         return '$' + Number(n.toFixed(0)).toLocaleString();
     }
 
-    function selectCounty(element) {
-        if (selectedCounty) {
-            selectedCounty.attr('stroke', 'gray').attr('stroke-width', '1');
+    function selectCounty(path) {
+        if ($selectedCounty) {
+            $selectedCounty.remove();
         }
 
-        element.attr('stroke', 'black').attr('stroke-width', '1.5');
-        selectedCounty = element;
+        // force rerender of element to put it on top
+        var node = path.node();
+        var clone = d3.select(node.cloneNode());
+        clone.attr('stroke', 'black').attr('stroke-width', '2px');
+
+        // append to end of counties so it renders on top and
+        // we can see the thicker outlines
+        var $clone = $(clone.node());
+        $(node.parentNode).append($clone);
+        $selectedCounty = $clone;
     }
 
     function dataLoaded(error, us, data) {
@@ -68,8 +76,8 @@ $(function () {
         $('.ui.dropdown').dropdown();
 
         $('#county-dropdown').dropdown('setting', 'onChange', function (fips) {
-            var $elt = $(`path[data-fips='${fips}']`);
-            selectCounty($elt);
+            var path = d3.select(`path[data-fips='${fips}']`);
+            selectCounty(path);
         });
 
         // convert to numeric values
@@ -113,7 +121,7 @@ $(function () {
                     return x;
                 }
 
-                console.log(fips);
+                //console.log(fips);
                 return color(0);
             })
             .on("mouseover", function (d) {
@@ -140,7 +148,11 @@ $(function () {
                     .style("opacity", 0);
             })
             .on("click", function () {
-                selectCounty(d3.select(this));
+                var path = d3.select(this);
+                var fips = path.attr('data-fips');
+
+                // update dropdown to show selection
+                $('#county-dropdown').dropdown('set selected', fips);
             });
     };
 });
