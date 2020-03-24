@@ -20,3 +20,7 @@ div.tooltip .name {
 #county-dropdown {
     margin-bottom: 20px;
 }
+
+.legend-title {
+    font-weight: bold;
+}

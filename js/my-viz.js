@@ -25,6 +25,14 @@ $(function () {
         return '$' + Number(n.toFixed(0)).toLocaleString();
     }
 
+    function toShortCurrency(n) {
+        var fmt = '($0a)';
+        if (n > 1000000) {
+            fmt = '($0.0a)';
+        }
+        return numeral(n).format(fmt);
+    }
+
     function selectCounty(path) {
         if ($selectedCounty) {
             $selectedCounty.remove();
@@ -154,5 +162,40 @@ $(function () {
                 // update dropdown to show selection
                 $('#county-dropdown').dropdown('set selected', fips);
             });
+
+        var legendBarWidth = 75;
+        var legendBarHeight = 20;
+        var interpolator = d3.interpolateNumber(propertyValueRange[0], propertyValueRange[1]);
+        var legendData = [];
+
+        for (var i = 0.0; i <= 1.0; i += 0.1) {
+            legendData.push(Math.floor(interpolator(i)));
+        }
+
+        var legend = usChoroplethSvg.selectAll("g.legend")
+            .data(legendData)
+            .enter().append("g")
+            .attr("class", "legend");
+
+        legend.append("rect")
+            .attr("x", function (d, i) { return (i * legendBarWidth); })
+            .attr("y", 550)
+            .attr("width", legendBarWidth)
+            .attr("height", legendBarHeight)
+            .style("fill", function (d, i) { return color(d); });
+
+        legend.append("text")
+            .attr("x", function (d, i) { return (i * legendBarWidth) + (legendBarWidth / 2); })
+            .attr("y", 590)
+            .attr('text-anchor', 'middle')
+            .text(function (d) { return toShortCurrency(d); });
+
+        var legendTitle = "January 2020 Median Property Values";
+
+        usChoroplethSvg.append("text")
+            .attr("x", 0)
+            .attr("y", 540)
+            .attr("class", "legend-title")
+            .text(function () { return legendTitle });
     };
 });
