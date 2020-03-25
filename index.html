@@ -5,38 +5,63 @@
   <meta charset="utf-8">
   <title>Property Guru</title>
   <link rel="stylesheet" href="css/bootstrap.min.css">
-  <link rel="stylesheet" href="css/style.css">
   <link rel="stylesheet" href="css/semantic.min.css">
-  <link rel="stylesheet" href="css/dropdown.min.css.min.css">
+  <link rel="stylesheet" href="css/dropdown.min.css">
+  <link rel="stylesheet" href="css/style.css">
 </head>
 
 <body>
   <div class="container">
-    <div class="row">
-      <div class="col-sm-4">
-        <div id="county-dropdown" class="ui fluid search selection dropdown">
-          <input type="hidden" name="county" />
-          <i class="dropdown icon"></i>
-          <div class="default text">Select County</div>
-          <div class="menu">
+    <section class="panel">
+      <div class="row">
+        <div class="col-sm-4">
+          <p>
+            The United States is one of the world’s most attractive locations for real-estate investing. We designed the
+            following data visualizations to help aspiring investors to navigate the landscape of investing in American
+            real estate in a data-driven way. These visualizations leveraged data from the U.S. Census Bureau, Zillow,
+            and
+            the University of Michigan.
+          </p>
+          <p>
+            The adjacent choropleth can be used to explore home prices across the United States by county. Darker shades
+            of blue exhibited by a given county indicate higher mean home prices relative to lighter shades of blue.
+          </p>
+          <label for="county">Select County by Name</label>
+          <div id="county-dropdown" class="ui fluid search selection dropdown">
+            <input type="hidden" name="county" />
+            <i class="dropdown icon"></i>
+            <div class="default text">Select County</div>
+            <div class="menu">
+            </div>
           </div>
         </div>
-        <p>
-          The United States is one of the world’s most attractive locations for real-estate investing. We designed the
-          following data visualizations to help aspiring investors to navigate the landscape of investing in American
-          real estate in a data-driven way. These visualizations leveraged data from the U.S. Census Bureau, Zillow, and
-          the University of Michigan.
-        </p>
-        <p>
-          The adjacent choropleth can be used to explore home prices across the United States by county. Darker shades
-          of blue exhibited by a given county indicate higher mean home prices relative to lighter shades of blue.
-        </p>
+        <div class="col-sm-8">
+          <div id="usChoropleth">
+          </div>
+        </div>
       </div>
-      <div class="col-sm-8">
-        <div id="usChoropleth">
-        </div> <!-- col -->
-      </div> <!-- col -->
-    </div> <!-- row -->
+    </section>
+    <section class="panel">
+      <div class="row">
+        <div class="col-sm-4">
+          <h2></h2>
+          <div id="attribute-dropdown" class="ui fluid search selection dropdown">
+            <input type="hidden" name="attribute" />
+            <i class="dropdown icon"></i>
+            <div class="default text">Select Attribute</div>
+            <div class="menu">
+              <div class="item" data-value="CrimeRatePer100000">Crime Rate</div>
+              <div class="item" data-value="Population">Population</div>
+              <div class="item" data-value="Unemployed Rate">Unemployment Rate</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-sm-8">
+          <div id="stateChoropleth">
+          </div>
+        </div>
+      </div>
+    </section>
   </div> <!-- container -->
   <!-- page content -->
   <script src="js/jquery-1.11.0.min.js"></script>
@@ -52,7 +77,35 @@
   <script src="https://d3js.org/d3-array.v1.min.js"></script>
   <script src="https://d3js.org/d3-geo.v1.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/numeral.js/2.0.6/numeral.min.js"></script>
+  <script src="//cdnjs.cloudflare.com/ajax/libs/ScrollMagic/2.0.7/ScrollMagic.min.js"></script>
+  <script src="//cdnjs.cloudflare.com/ajax/libs/ScrollMagic/2.0.7/plugins/debug.addIndicators.min.js"></script>
   <script src="js/my-viz.js"></script>
+  <script>
+    $(function () { // wait for document ready
+      // init
+      var controller = new ScrollMagic.Controller({
+        globalSceneOptions: {
+          triggerHook: 'onLeave',
+          duration: "200%" // this works just fine with duration 0 as well
+          // However with large numbers (>20) of pinned sections display errors can occur so every section should be unpinned once it's covered by the next section.
+          // Normally 100% would work for this, but here 200% is used, as Panel 3 is shown for more than 100% of scrollheight due to the pause.
+        }
+      });
+
+      // get all slides
+      var slides = document.querySelectorAll("section.panel");
+
+      // create scene for every slide
+      for (var i = 0; i < slides.length; i++) {
+        new ScrollMagic.Scene({
+          triggerElement: slides[i]
+        })
+          .setPin(slides[i], { pushFollowers: false })
+          .addIndicators() // add indicators (requires plugin)
+          .addTo(controller);
+      }
+    });
+  </script>
 </body>
 
 </html>
