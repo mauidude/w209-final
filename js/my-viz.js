@@ -1,266 +1,13 @@
-// Shorthand for $( document ).ready()
 $(function () {
-    class Visualization {
-        constructor() {
-            this._onClick = null;
-        }
-
-        set data(data) {
-            this._data = data;
-        }
-
-        get data() {
-            return this._data;
-        }
-
-        onClick(fn) {
-            this._onClick = fn;
-        }
-
-        render(svg) { }
-    }
-
-    class Legend extends Visualization {
-        constructor(x, y, title, width, height, segments, fmt, horizontal = true) {
-            super();
-            this.x = x;
-            this.y = y;
-            this.title = title;
-            this.width = width;
-            this.height = height;
-            this.segments = segments;
-            this.horizontal = horizontal;
-            this.fmt = fmt;
-        }
-
-        set scale(scale) {
-            this._scale = scale;
-        }
-
-        set extent(extent) {
-            this._extent = extent;
-        }
-
-        render(svg) {
-            var interpolator = d3.interpolateNumber(this._extent[0], this._extent[1]);
-            var legendData = [];
-            var step = 1.0 / this.segments;
-
-            for (var i = 0.0; i <= 1.0; i += step) {
-                legendData.push(Math.floor(interpolator(i)));
-            }
-
-            var that = this;
-
-            var legend = svg.selectAll("g.legend")
-                .data(legendData)
-                .enter().append("g")
-                .attr("class", "legend");
-
-            legend.append("rect")
-                .attr("x", (d, i) => that.horizontal ? (i * that.width) : that.x)
-                .attr("y", (d, i) => that.horizontal ? that.y + 5 : (i * that.height))
-                .attr("width", this.width)
-                .attr("height", this.height)
-                .style("fill", function (d) { return that._scale(d); });
-
-            legend.append("text")
-                .attr("x", (d, i) => that.horizontal ? ((i * that.width) + (that.width / 2)) : that.x + that.width + 5)
-                .attr("y", (d, i) => that.horizontal ? that.y + that.height + 20 : ((i * that.height) + (that.height / 2)))
-                .attr('text-anchor', () => that.horizontal ? 'middle' : 'auto')
-                .attr('alignment-baseline', () => that.horizontal ? 'auto' : 'central')
-                .text(this.fmt);
-
-            svg.append("text")
-                .attr("x", this.x)
-                .attr("y", this.y)
-                .attr("class", "legend-title")
-                .text(function () { return that.title; });
-        }
-    }
-
-    class Choropleth extends Visualization {
-        // data format for choropleth is:
-        // {
-        //      "fipsCode": {"value": <value>, "name": <name>}
-        // }
-        constructor(projection, geo, legend, tooltipFormatter, interpolator = d3.interpolateBlues) {
-            super();
-            this.projection = projection;
-            this.geo = geo;
-            this.interpolator = interpolator;
-            this.$selected = null;
-            this.legend = legend;
-            this.tooltipFormatter = tooltipFormatter;
-        }
-
-        render(svg) {
-            var path = d3.geoPath(this.projection);
-            var color = d3.scaleSequential();
-
-            var extent = d3.extent(Object.values(this.data).map(x => x.value));
-
-            color.domain(extent).
-                interpolator(this.interpolator);
-
-            var tooltip = d3.select("body").append("div")
-                .attr("class", "tooltip")
-                .style("opacity", 0);
-
-            var that = this;
-
-            function initialize(d3obj) {
-                return d3obj.attr('data-fips', function (d) {
-                    return padWithLeadingZeros(d.id, 5);
-                })
-                    .attr("fill", function (d) {
-                        var fips = padWithLeadingZeros(d.id, 5);
-
-                        if (fips in that.data) {
-                            var value = that.data[fips].value;
-                            return color(parseInt(value));
-                        }
-
-                        //console.log(fips);
-                        return 'gray';
-                    })
-                    .on('mouseover', function (d) {
-                        var fips = padWithLeadingZeros(d.id, 5);
-                        var regionData = that.data[fips];
-                        if (!regionData) {
-                            tooltip.transition()
-                                .duration(300)
-                                .style("opacity", 0);
-                            return;
-                        }
-
-                        tooltip.html('');
-                        tooltip.append('div').attr('class', 'name').text(regionData.name);
-                        tooltip.append('div').attr('class', 'data').text(that.tooltipFormatter(regionData));
-
-                        tooltip.style("left", (d3.event.pageX + 30) + "px")
-                            .style("top", (d3.event.pageY - 30) + "px");
-
-                        tooltip.transition()
-                            .duration(300)
-                            .style("opacity", 1);
-                    })
-                    .on('mouseout', function () {
-                        tooltip.transition()
-                            .duration(300)
-                            .style("opacity", 0);
-                    });
-            }
-
-            if (!this.rendered) {
-                var map = svg.append("g")
-                    .attr("class", "county")
-                    .selectAll("path")
-                    .data(this.geo)
-                    .enter()
-                    .append("path")
-                    .attr("d", path)
-                    .attr('stroke', 'gray')
-                    .attr('stroke-width', '1')
-                    .on('click', function () {
-                        var path = d3.select(this);
-                        var fips = path.attr('data-fips');
-
-                        if (fips in that.data) {
-                            that.select(fips);
-                            that.render(svg);
-
-                            if (that._onClick) {
-                                that._onClick(path);
-                            }
-                        }
-                    });
-
-                initialize(map);
-                this.rendered = true;
-            }
-
-            // redraw selection each time
-            svg.selectAll("path.selected").data([]).exit().remove();
-
-            var selection = svg
-                .selectAll("path.selected")
-                .data(this.geo.filter(d => padWithLeadingZeros(d.id, 5) === this.selectedFips))
-                .enter()
-                .append("path")
-                .attr("d", path)
-                .attr('stroke', 'black')
-                .attr('stroke-width', '2')
-                .attr('class', 'selected');
-
-            initialize(selection)
-
-            if (this.legend) {
-                this.legend.scale = color;
-                this.legend.extent = extent;
-                this.legend.render(svg);
-            }
-        }
-
-        select(fips) {
-            this.selectedFips = fips;
-        }
-    }
-
-    var projection = d3.geoAlbersUsa();
-    var width = 975;
-    var height = 610;
-
-    var usChoroplethSvg = d3.select("#usChoropleth")
-        .append("svg")
-        .attr("viewBox", `0 0 ${width} ${height}`);
-    var stateChoroplethSvg = d3.select("#stateChoropleth")
-        .append("svg")
-        .attr("viewBox", `0 0 ${width} ${height}`);
-
+    // fetch data
     queue()
         .defer(d3.json, "data/us.json")
         .defer(d3.csv, "data/merged_data.csv")
         .await(dataLoaded);
 
-    function padWithLeadingZeros(n, length) {
-        var s = n.toString();
-        while (s.length < length) {
-            s = "0" + s;
-        }
-
-        return s;
-    }
-
-    function toCurrency(n) {
-        return '$' + Number(n.toFixed(0)).toLocaleString();
-    }
-
-    function toShortCurrency(n) {
-        var fmt = '($0a)';
-        if (n > 1000000) {
-            fmt = '($0.0a)';
-        }
-        return numeral(n).format(fmt);
-    }
-
-    function toShortNumber(n) {
-        var fmt = '(0a)';
-        if (n > 1000000) {
-            fmt = '(0.0a)';
-        }
-        return numeral(n).format(fmt);
-    }
-
-    function toPercent(n, divisor = 100) {
-        var fmt = '0.00%';
-        return numeral(n / divisor).format(fmt);
-    }
-
-    function dataLoaded(error, us, data) {
-        var valueColumn = '2020-01';
-
-        // map FIP codes/names to data records
+    function dataLoaded(err, us, data) {
+        // map FIP codes/names to data records &
+        // ensure proper data types
         var fipsToData = {};
         var namesToFips = {};
         data.forEach(function (d) {
@@ -280,10 +27,8 @@ $(function () {
             var name = d['RegionName'] + ', ' + d['State'];
             d['Name'] = name;
             namesToFips[name] = fips;
-        });
 
-        // convert to numeric values
-        data.forEach(function (d) {
+            // convert to numeric values
             for (var field in d) {
                 if (['RegionID', 'RegionName', 'State', 'Metro', 'StateCodeFIPS', 'MunicipalCodeFIPS', 'FIPS', 'Name'].includes(field)) {
                     continue;
@@ -292,20 +37,6 @@ $(function () {
                 d[field] = parseFloat(d[field]);
             }
         });
-
-        function selectionChanged(fips, attribute = null) {
-            // update choropleth
-            usChoropleth.select(fips);
-            usChoropleth.render(usChoroplethSvg);
-
-            if (!attribute) {
-                attribute = $('#attribute-dropdown').dropdown('get value');;
-            }
-
-            // update dropdown
-            $('#county-dropdown').dropdown('set selected', fips);
-            initializeStateChoropleth(fips, attribute);
-        }
 
         // populate dropdown
         var $menu = $('#county-dropdown .menu');
@@ -318,91 +49,774 @@ $(function () {
         // enable dropdown
         $('.ui.dropdown').dropdown();
 
+        // update selection on map when dropdown changes
         $('#county-dropdown').dropdown('setting', 'onChange', function (fips) {
-            selectionChanged(fips);
+            renderUS(fips, false);
         });
 
-
-        $('#attribute-dropdown').dropdown('setting', 'onChange', function (attr) {
-            var fips = $('#county-dropdown').dropdown('get value');;
-            selectionChanged(fips, attr);
+        $('#attribute-dropdown').dropdown('setting', 'onChange', function (attribute) {
+            svg.selectAll('.data').remove();
+            renderState(attribute, true);
         });
 
-        // build US choropleth
-        var legend = new Legend(0, 540, 'January 2020 Median Home Prices', 75, 20, 10, toShortCurrency);
-        var usChoropleth = new Choropleth(projection,
-            topojson.feature(us, us.objects.counties).features,
-            legend,
-            (d) => 'Median Sale Price: ' + toCurrency(d.value));
-        var fipsToValue = data.reduce((obj, row) => {
-            var fips = row['FIPS'];
-            var value = row[valueColumn];
-            var name = row['Name'];
+        const width = 975;
+        const height = 610;
+        const propertyValueColumn = '2020-01';
+        const selectionColor = '#21a4a2';
+        const highlightColor = '#cd3d8b';
+        const noDataColor = '#eee';
+        const usMedian = d3.median(data, d => d[propertyValueColumn]);
 
-            return Object.assign(obj, { [fips]: { value: value, name: name } });
-        }, {});
+        var svg = d3.select("#viz")
+            .append("svg")
+            .attr("viewBox", `0 0 ${width} ${height}`);
 
-        usChoropleth.onClick(path => {
-            var fips = path.attr('data-fips');
-            selectionChanged(fips);
-        });
-        usChoropleth.data = fipsToValue;
-        usChoropleth.render(usChoroplethSvg);
+        var selectedFips = null;
+        var projection = d3.geoAlbersUsa();
+        var path = d3.geoPath(projection);
+        var max = d3.max(data, d => d[propertyValueColumn]);
+        var extent = [0, max];
+        var color = d3.scaleSequential();
 
-        function initializeStateChoropleth(fips, attribute) {
-            var stateFips = fips.substring(0, 2);
-            var countyFips = fips.substring(2);
+        color.domain(extent)
+            .interpolator(d3.interpolateRdPu);
 
-            // clear svg
-            $(stateChoroplethSvg.node()).empty();
+        var margin = {
+            top: 50,
+            left: 100,
+            right: 50,
+            bottom: 200
+        };
 
+        var tooltip = d3.select("body").append("div")
+            .attr("class", "tooltip")
+            .style("opacity", 0);
+
+        function renderUS(selection, refresh, focus = false) {
+            var features = topojson.feature(us, us.objects.counties).features;
+            if (refresh) {
+                var bind = svg.selectAll('.data')
+                    .data(features, d => d.id);
+
+                bind.enter()
+                    .append('path')
+                    .attr('class', 'data county')
+                    .attr('d', path)
+                    .attr('stroke', 'white')
+                    .attr('stroke-width', '.7')
+                    .attr('opacity', '0')
+                    .attr('data-fips', function (d) {
+                        return padWithLeadingZeros(d.id, 5);
+                    })
+                    .attr('fill', function (d) {
+                        var fips = padWithLeadingZeros(d.id, 5);
+                        if (fips in fipsToData) {
+                            var value = fipsToData[fips][propertyValueColumn];
+                            return color(value);
+                        }
+
+                        return noDataColor;
+                    })
+                    .on('click', function () {
+                        var fips = d3.select(this).attr('data-fips');
+                        if (fips in fipsToData) {
+                            renderUS(fips, false);
+                        }
+                    })
+                    .on('mouseover', function (d) {
+                        var fips = padWithLeadingZeros(d.id, 5);
+                        var regionData = fipsToData[fips];
+                        if (!regionData) {
+                            tooltip.transition()
+                                .duration(300)
+                                .style("opacity", 0);
+                            return;
+                        }
+
+                        tooltip.html('');
+                        tooltip.append('div').attr('class', 'name').text(regionData['Name']);
+                        tooltip.append('div').attr('class', 'data').text(toCurrency(regionData[propertyValueColumn]));
+
+                        tooltip.style("left", (d3.event.pageX + 30) + "px")
+                            .style("top", (d3.event.pageY - 30) + "px");
+
+                        tooltip.transition()
+                            .duration(300)
+                            .style("opacity", 1);
+                    })
+                    .on('mouseout', function () {
+                        tooltip.transition()
+                            .duration(300)
+                            .style("opacity", 0);
+                    })
+                    .transition()
+                    .duration(750)
+                    .delay(() => Math.floor(Math.random() * 500))
+                    .attr('opacity', '1');
+
+                bind.exit()
+                    .transition()
+                    .duration(750)
+                    .delay(() => Math.floor(Math.random() * 500))
+                    .attr('opacity', '0')
+                    .remove();
+
+                svg.selectAll('.aux, .line')
+                    .attr('opacity', '1')
+                    .transition()
+                    .duration(750)
+                    .attr('opacity', '0')
+                    .remove();
+
+                var interpolator = d3.interpolateNumber(extent[0], extent[1]);
+                var legendData = [null];
+
+                for (var i = 0.0; i <= 1.0; i += 1.0 / 10) {
+                    legendData.push(Math.floor(interpolator(i)));
+                }
+
+                var legend = svg.selectAll('g.legend')
+                    .data(legendData)
+                    .enter()
+                    .append('g')
+                    .attr('class', 'legend')
+                    .attr('transform', 'translate(100, 0)');
+
+                legend.append("rect")
+                    .attr('x', (d, i) => (i * 50))
+                    .attr('y', 550)
+                    .attr('width', 50)
+                    .attr('height', 20)
+                    .style('fill', d => d === null ? noDataColor : color(d));
+
+                legend.append('text')
+                    .attr('x', (d, i) => ((i * 50) + (50 / 2)))
+                    .attr('y', 590)
+                    .attr('text-anchor', 'middle')
+                    .text((d, i) => d === null ? 'No Data' : toShortCurrency(d));
+
+                legend.append('text')
+                    .attr('x', 5)
+                    .attr('y', 540)
+                    .attr('class', 'legend-title')
+                    .text('January 2020 Median Home Values');
+            }
+
+            // remove current selection
+            svg.selectAll('path.selected')
+                .data([])
+                .exit()
+                .remove();
+
+            svg.selectAll('path.selected')
+                .data(features.filter(d => padWithLeadingZeros(d.id, 5) === selection))
+                .enter()
+                .append('path')
+                .attr('d', path)
+                .attr('stroke', selectionColor)
+                .attr('stroke-width', '2')
+                .attr('class', 'selected')
+                .attr('fill', 'transparent')
+                .on('mouseover', function (d) {
+                    var fips = padWithLeadingZeros(d.id, 5);
+                    var regionData = fipsToData[fips];
+                    if (!regionData) {
+                        tooltip.transition()
+                            .duration(300)
+                            .style("opacity", 0);
+                        return;
+                    }
+
+                    tooltip.html('');
+                    tooltip.append('div').attr('class', 'name').text(regionData['Name']);
+                    tooltip.append('div').attr('class', 'data').text(toCurrency(regionData[propertyValueColumn]));
+
+                    tooltip.style("left", (d3.event.pageX + 30) + "px")
+                        .style("top", (d3.event.pageY - 30) + "px");
+
+                    tooltip.transition()
+                        .duration(300)
+                        .style("opacity", 1);
+                })
+                .on('mouseout', function () {
+                    tooltip.transition()
+                        .duration(300)
+                        .style("opacity", 0);
+                });
+
+            $('#county-dropdown').dropdown('set selected', selection);
+
+            if (selection) {
+                var county = fipsToData[selection];
+                var name = county['Name'];
+                var state = county['State'];
+                var stateName = stateNames[state];
+
+                $('.county-selection').html(name);
+                $('.state-selection').html(stateName);
+                selectedFips = selection;
+            }
+        }
+
+        function renderBarChart() {
+            var stateFips = selectedFips.substring(0, 2);
+
+            // filter on state and order by value descending
+            var counties = data
+                .filter(d => d['StateCodeFIPS'] === stateFips)
+                .sort((a, b) => b[propertyValueColumn] - a[propertyValueColumn]);
+
+            var stateMedian = d3.median(counties, d => d[propertyValueColumn]);
+
+            // get counties of state
+            var stateMap = topojson
+                .feature(us, us.objects.counties).features
+                .filter(x => padWithLeadingZeros(x.id, 5).substring(0, 2) === stateFips);
+
+            // clear out svg
+            svg.selectAll('.aux, .legend')
+                .style('opacity', '1')
+                .transition()
+                .duration(750)
+                .style('opacity', '0')
+                .remove();
+
+            // make lookup for county geometry by fips code
+            var fipsToShape = {};
+            stateMap.forEach(function (d) {
+                var fips = padWithLeadingZeros(d.id, 5);
+                fipsToShape[fips] = d;
+            });
+
+            // bar chart
+            function countyName(c) {
+                return c.replace(/\s+County\s*$/, '');
+            }
+
+            var extent = d3.extent(counties, d => d[propertyValueColumn]);
+            if (usMedian < extent[0]) {
+                extent[0] = usMedian;
+            }
+
+            // adjust minimum value to give more height to smaller bars
+            extent[0] *= .75;
+
+            var yScale = d3.scaleLinear()
+                .domain(extent)
+                .range([height - margin.bottom, margin.top]);
+            var xScale = d3.scaleBand()
+                .domain(counties.map(d => countyName(d['RegionName'])))
+                .range([margin.left, width - margin.right])
+                .padding(0.1);
+
+
+            bind = svg.selectAll('.data, .selected')
+                .data(counties, d => parseInt(d['FIPS']));
+
+            bind.enter()
+                .insert('rect', ':first-child')
+                .attr('class', 'data bar')
+                .attr('height', '0')
+                .attr('width', d => xScale.bandwidth())
+                .attr('x', (d, i) => xScale(countyName(counties[i]['RegionName'])))
+                .attr('y', height - margin.bottom)
+                .attr('fill', d => d['FIPS'] === selectedFips ? selectionColor : 'pink')
+                .on('mouseover', function (d) {
+                    var fips = d['FIPS'];
+                    var regionData = fipsToData[fips];
+                    if (!regionData) {
+                        tooltip.transition()
+                            .duration(300)
+                            .style("opacity", 0);
+                        return;
+                    }
+
+                    tooltip.html('');
+                    tooltip.append('div').attr('class', 'name').text(regionData['Name']);
+                    tooltip.append('div').attr('class', 'data').text(toCurrency(regionData[propertyValueColumn]));
+
+                    tooltip.style("left", (d3.event.pageX + 30) + "px")
+                        .style("top", (d3.event.pageY - 30) + "px");
+
+                    tooltip.transition()
+                        .duration(300)
+                        .style("opacity", 1);
+                })
+                .on('mouseout', function () {
+                    tooltip.transition()
+                        .duration(300)
+                        .style("opacity", 0);
+                })
+                .transition()
+                .duration(750)
+                .attr('height', function (d) {
+                    var y = yScale(d[propertyValueColumn]);
+                    return height - y - margin.bottom;
+                })
+                .attr('y', d => yScale(d[propertyValueColumn]));
+
+            bind.exit()
+                .transition()
+                .duration(750)
+                .delay(() => Math.floor(Math.random() * 500))
+                .style('opacity', '0')
+                .remove();
+
+            // median line
+            var line = d3.line()
+                .x((d, i) => i == 0 ? margin.left : width - margin.right)
+                .y((d, i) => yScale(d));
+
+            svg.append('path')
+                .attr('fill', 'none')
+                .attr('class', 'aux')
+                .attr('stroke', '#888')
+                .attr('stroke-width', '2')
+                .attr('d', line([usMedian, usMedian]));
+
+            // see if line already exists
+            var medianLine = svg.selectAll('path.line');
+
+            if (medianLine.size() > 0) {
+                // animate from current trend line median line (scrolling up)
+                medianLine.attr('fill', 'none')
+                    .attr('class', 'line')
+                    .attr('stroke', highlightColor)
+                    .attr('stroke-width', '2')
+                    .transition()
+                    .duration(750)
+                    .attrTween('d', function (d) {
+                        var previous = d3.select(this).attr('d');
+                        var current = line([stateMedian, stateMedian]);
+
+                        return d3.interpolatePath(previous, current);
+                    });
+            }
+            else {
+                // add trend line (scrolling down)
+                svg.append('path')
+                    .attr('class', 'line')
+                    .attr('fill', 'none')
+                    .attr('stroke', highlightColor)
+                    .attr('stroke-width', '2')
+                    .attr('d', line([stateMedian, stateMedian]));
+            }
+
+            // append median labels
+            svg.append('text')
+                .attr('class', 'aux text')
+                .attr('stroke', '#888')
+                .attr('text-anchor', 'end')
+                .attr('alignment-baseline', 'baseline')
+                .attr('x', width - margin.right)
+                .attr('y', yScale(usMedian) - 3)
+                .text(`US Median`);
+
+            var county = fipsToData[selectedFips];
+            var state = county['State'];
+
+            svg.append('text')
+                .attr('class', 'aux text')
+                .attr('stroke', highlightColor)
+                .attr('text-anchor', 'end')
+                .attr('alignment-baseline', 'baseline')
+                .attr('x', width - margin.right)
+                .attr('y', yScale(stateMedian) - 3)
+                .text(`${state} Median`);
+
+            // draw axes
+            svg.append('g')
+                .attr('class', 'axis aux')
+                .attr("transform", `translate(0,${(height - margin.bottom)})`)
+                .call(d3.axisBottom(xScale))
+                .selectAll('text')
+                .style('text-anchor', 'end')
+                .attr('transform', 'rotate(-45) translate(-5,0)');
+
+            svg.append('g')
+                .attr('class', 'axis aux')
+                .attr('transform', `translate(${margin.left}, 0)`)
+                .call(d3.axisLeft(yScale).tickFormat(toShortCurrency));
+        }
+
+        function renderLineChart() {
+            var county = data.filter(d => d['FIPS'] === selectedFips)[0];
+            var parseDate = d3.timeParse('%Y-%m');
+
+            var propertyValues = [];
+            var nullValues = [];
+            for (var i = 1996; i <= 2020; i++) {
+                for (var j = 1; j <= 12; j++) {
+                    var date = `${i}-${padWithLeadingZeros(j, 2)}`;
+                    var value = county[date];
+
+                    // if value was null and we haven't added any data yet
+                    // just skip it
+                    if (!value) {
+                        // save null values and only add them if we see another value
+                        // ie we aren't at the end of the list of dates
+                        if (propertyValues.length > 0) {
+                            nullValues.push(date);
+                        }
+
+                        continue;
+                    }
+
+                    for (var k = 0; k < nullValues.length; k++) {
+                        propertyValues.push({
+                            date: parseDate(nullValues[i]),
+                            value: null
+                        });
+                    }
+
+                    propertyValues.push({
+                        date: parseDate(date),
+                        value: value,
+                    });
+                }
+            }
+
+            var timeExtent = d3.extent(propertyValues, d => d.date);
+            var valueExtent = d3.extent(propertyValues, d => d.value);
+
+            valueExtent[0] *= .75;
+            valueExtent[1] *= 1.20;
+
+            var xScale = d3.scaleTime()
+                .domain(timeExtent)
+                .range([margin.left, width - margin.right]);
+            var yScale = d3.scaleLinear()
+                .domain(valueExtent)
+                .range([height - margin.bottom, margin.top]);
+
+            var line = d3.line()
+                .x(d => xScale(d.date))
+                .y(d => yScale(d.value));
+
+            svg.selectAll('.data, .aux')
+                .style('opacity', '1')
+                .transition()
+                .duration(750)
+                .delay(() => Math.floor(Math.random() * 500))
+                .attr('opacity', '0')
+                .remove();
+
+            svg.selectAll('.legend')
+                .remove();
+
+            // see if line already exists
+            var median = svg.selectAll('path.line')
+                .datum(propertyValues);
+
+            var path;
+
+            if (median.size() > 0) {
+                // animate median line to current trend line (scrolling down)
+                path = median.attr('fill', 'none')
+                    .attr('class', 'line')
+                    .attr('stroke', highlightColor)
+                    .attr('stroke-width', '2')
+                    .attr('stroke-linejoin', 'miter');
+
+                path.transition()
+                    .duration(750)
+                    .attrTween('d', function (d) {
+                        var previous = d3.select(this).attr('d');
+                        var current = line(d);
+
+                        return d3.interpolatePath(previous, current);
+                    });
+            }
+            else {
+                // add trend line (scrolling up)
+                path = median.append('path')
+                    .attr('class', 'line')
+                    .attr('fill', 'none')
+                    .attr('stroke', highlightColor)
+                    .attr('stroke-width', '2')
+                    .attr('d', line);
+            }
+
+            var fmt = d3.timeFormat('%B %Y');
+            var bisectDate = d3.bisector(d => d.date).left;
+
+            path
+                .on('mouseover', function (d) {
+                    var x = xScale.invert(d3.mouse(this)[0]);
+                    var i = bisectDate(propertyValues, x, 1);
+
+                    var datum = propertyValues[i];
+
+                    tooltip.html('');
+                    tooltip.append('div').attr('class', 'name').text(fmt(datum.date));
+                    tooltip.append('div').attr('class', 'data').text(toCurrency(datum.value));
+
+                    tooltip.style("left", (d3.event.pageX + 30) + "px")
+                        .style("top", (d3.event.pageY - 30) + "px");
+
+                    tooltip.transition()
+                        .duration(300)
+                        .style("opacity", 1);
+                })
+                .on('mouseout', function () {
+                    tooltip.transition()
+                        .duration(300)
+                        .style("opacity", 0);
+                });
+
+            // draw axes
+            svg.append('g')
+                .attr('class', 'axis aux')
+                .attr("transform", `translate(0,${(height - margin.bottom)})`)
+                .call(d3.axisBottom(xScale).tickFormat(d3.timeFormat('%b %Y')));
+
+            svg.append('g')
+                .attr('class', 'axis aux')
+                .attr('transform', `translate(${margin.left}, 0)`)
+                .call(d3.axisLeft(yScale).tickFormat(toShortCurrency));
+        }
+
+        function renderState(attribute = null, immediate = false) {
+            if (!attribute) {
+                attribute = 'Population';
+            }
+            $('#attribute-dropdown').dropdown('set selected', attribute);
+
+
+            var stateFips = selectedFips.substring(0, 2);
             var stateFipsInt = parseInt(stateFips);
 
             // get bounds of state
             var stateMap = topojson.feature(us, us.objects.states).features.filter(x => x.id === stateFipsInt);
             var statePath = d3.geoPath(d3.geoAlbersUsa().scale(1).translate([0, 0]));
             var b = statePath.bounds(stateMap[0]);
-            var s = 0.95 / Math.max((b[1][0] - b[0][0]) / width, (b[1][1] - b[0][1]) / height);
+            var s = 0.75 / Math.max((b[1][0] - b[0][0]) / width, (b[1][1] - b[0][1]) / height);
             var t = [(width - s * (b[1][0] + b[0][0])) / 2, (height - s * (b[1][1] + b[0][1])) / 2];
 
 
             // get counties of state
-            stateMap = topojson.feature(us, us.objects.counties).features.filter(x => padWithLeadingZeros(x.id, 5).substring(0, 2) === stateFips);
+            var counties = topojson.feature(us, us.objects.counties).features
+                .filter(x => padWithLeadingZeros(x.id, 5).substring(0, 2) === stateFips);
 
-            var stateProjection = d3.geoAlbersUsa()
+            var projection = d3.geoAlbersUsa()
                 .scale(s)
                 .translate(t);
 
+            var path = d3.geoPath(projection);
+            var stateData = data.filter(d => d['StateCodeFIPS'] == stateFips);
+            var extent = d3.extent(stateData, d => d[attribute]);
+            var color = d3.scaleSequential();
+
             var formatters = {
-                'Population': { fmt: toShortNumber, desc: 'Population: ' },
-                'Unemployed Rate': { fmt: (n) => toPercent(n, 100), desc: 'Unemployment Rate: ' },
-                'CrimeRatePer100000': { fmt: (n) => toPercent(n, 100000), desc: 'Crime Rate Per 100,000: ' },
+                'Population': { fmt: toShortNumber, desc: 'Population: ', title: '2013 Population' },
+                'Unemployed Rate': { fmt: (n) => toPercent(n, 100), desc: 'Unemployment Rate: ', title: '2016 Unemployment Rate' },
+                'CrimeRatePer100000': { fmt: (n) => toPercent(n, 100000), desc: 'Crime Rate Per 100,000: ', title: '2016 Crime Rate per 100k' },
             };
 
-            var fmt = { desc: '', fmt: toShortNumber };
+            var fmt = { desc: '', fmt: toShortNumber, title: '' };
             if (attribute in formatters) {
                 fmt = formatters[attribute];
             }
 
-            // build state choropleth
-            legend = new Legend(800, 540, '', 20, 25, 10, fmt.fmt, false);
-            var stateChoropleth = new Choropleth(
-                stateProjection,
-                stateMap,
-                legend,
-                (d) => fmt.desc + fmt.fmt(d.value));
+            color.domain(extent)
+                .interpolator(d3.interpolateRdPu);
 
-            fipsToValue = data.filter((d) => d['StateCodeFIPS'] === stateFips).reduce((obj, row) => {
-                var fips = row['FIPS'];
-                var value = row[attribute];
-                var name = row['Name'];
+            // transition trend line to state outline
+            svg.selectAll('.line')
+                .transition()
+                .duration(750)
+                .attr('stroke-linejoin', 'round')
+                .attrTween('d', function (d) {
+                    var previous = d3.select(this).attr('d');
+                    var shapes = stateMap.map(d => path(d));
 
-                return Object.assign(obj, { [fips]: { value: value, name: name } });
-            }, {});
+                    return d3.interpolatePath(previous, shapes[0]);
+                });
 
-            stateChoropleth.data = fipsToValue;
-            stateChoropleth.render(stateChoroplethSvg);
-            stateChoropleth.select(fips);
+            var bind = svg.selectAll('.data');
+
+            bind.data(counties, d => d.id)
+                .enter()
+                .insert('path', ':first-child')
+                .attr('class', 'data county')
+                .attr('d', path)
+                .attr('stroke', 'white')
+                .attr('stroke-width', '.7')
+                .attr('stroke-linejoin', 'round')
+                .attr('opacity', '0')
+                .attr('data-fips', function (d) {
+                    return padWithLeadingZeros(d.id, 5);
+                })
+                .attr('fill', function (d) {
+                    var fips = padWithLeadingZeros(d.id, 5);
+                    if (fips in fipsToData) {
+                        var value = fipsToData[fips][attribute];
+                        if (value) {
+                            return color(value);
+                        }
+                    }
+
+                    return noDataColor;
+                })
+                .on('mouseover', function (d) {
+                    var fips = padWithLeadingZeros(d.id, 5);
+                    var regionData = fipsToData[fips];
+                    if (!regionData) {
+                        tooltip.transition()
+                            .duration(300)
+                            .style("opacity", 0);
+                        return;
+                    }
+
+                    tooltip.html('');
+                    tooltip.append('div').attr('class', 'name').text(regionData['Name']);
+                    tooltip.append('div').attr('class', 'data').text(fmt.fmt(regionData[attribute]));
+
+                    tooltip.style("left", (d3.event.pageX + 30) + "px")
+                        .style("top", (d3.event.pageY - 30) + "px");
+
+                    tooltip.transition()
+                        .duration(300)
+                        .style("opacity", 1);
+                })
+                .on('mouseout', function () {
+                    tooltip.transition()
+                        .duration(300)
+                        .style("opacity", 0);
+                })
+                .transition()
+                .duration(750)
+                .delay(() => (immediate ? 0 : 750) + Math.floor(Math.random() * 500))
+                .attr('opacity', '1');
+
+            svg.selectAll('.aux:not(.selected)')
+                .attr('opacity', '1')
+                .transition()
+                .duration(750)
+                .attr('opacity', '0')
+                .remove();
+
+            svg.selectAll('path.selected').remove();
+
+            svg.selectAll('path.selected')
+                .data(counties.filter(d => padWithLeadingZeros(d.id, 5) === selectedFips))
+                .enter()
+                .append('path')
+                .attr('d', path)
+                .attr('stroke', selectionColor)
+                .attr('stroke-width', '2')
+                .attr('class', 'selected aux')
+                .attr('fill', 'transparent')
+                .attr('opacity', '0')
+                .on('mouseover', function (d) {
+                    var fips = padWithLeadingZeros(d.id, 5);
+                    var regionData = fipsToData[fips];
+                    if (!regionData) {
+                        tooltip.transition()
+                            .duration(300)
+                            .style("opacity", 0);
+                        return;
+                    }
+
+                    tooltip.html('');
+                    tooltip.append('div').attr('class', 'name').text(regionData['Name']);
+                    tooltip.append('div').attr('class', 'data').text(fmt.fmt(regionData[attribute]));
+
+                    tooltip.style("left", (d3.event.pageX + 30) + "px")
+                        .style("top", (d3.event.pageY - 30) + "px");
+
+                    tooltip.transition()
+                        .duration(300)
+                        .style("opacity", 1);
+                })
+                .on('mouseout', function () {
+                    tooltip.transition()
+                        .duration(300)
+                        .style("opacity", 0);
+                })
+                .transition()
+                .delay(() => (immediate ? 0 : 750) + Math.floor(Math.random() * 500))
+                .attr('opacity', '1');
+
+            var interpolator = d3.interpolateNumber(extent[0], extent[1]);
+            var legendData = [null];
+
+            for (var i = 0.0; i <= 1.0; i += 1.0 / 10) {
+                legendData.push(Math.floor(interpolator(i)));
+            }
+
+            svg.selectAll('g.legend, .legend-title')
+                .remove();
+
+            var legend = svg
+                .selectAll('g.legend')
+                .data(legendData)
+                .enter()
+                .append('g')
+                .attr('class', 'legend');
+
+            legend.append('rect')
+                .attr('x', (d, i) => (i * 50))
+                .attr('y', 550)
+                .attr('width', 50)
+                .attr('height', 20)
+                .style('fill', d => d === null ? noDataColor : color(d));
+
+            legend.append('text')
+                .attr('x', (d, i) => ((i * 50) + (50 / 2)))
+                .attr('y', 590)
+                .attr('text-anchor', 'middle')
+                .text((d, i) => d === null ? 'No Data' : fmt.fmt(d));
+
+            svg.append('text')
+                .attr('x', 5)
+                .attr('y', 540)
+                .attr('class', 'legend-title aux')
+                .text(fmt.title);
+        }
+
+        renderUS(null, true);
+
+        // initialize scrolling animations
+        var controller = new ScrollMagic.Controller();
+        var slides = document.querySelectorAll("section.panel");
+
+        // create scene for every slide
+        for (var i = 0; i < slides.length; i++) {
+            new ScrollMagic.Scene({
+                triggerElement: slides[i],
+                duration: '75%',
+            })
+                .addTo(controller)
+                .on("enter leave", function (e) {
+                    if (e.type !== 'enter') {
+                        return;
+                    }
+                    var $target = $(e.target.triggerElement());
+                    var viz = $target.attr('data-viz');
+
+                    switch (viz) {
+                        case 'us':
+                            renderUS(selectedFips, true, true);
+                            break;
+                        case 'bar':
+                            renderBarChart();
+                            break;
+
+                        case 'line':
+                            renderLineChart();
+                            break;
+
+                        case 'state':
+                            renderState();
+                            break;
+                    }
+                })
+                .on("start end", function (e) {
+                })
+                .on("progress", function (e) {
+                    //console.log(`scroll progress ${e.progress.toFixed(3)}`);
+                });
         }
     };
 });

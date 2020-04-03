@@ -1,18 +1,46 @@
 body {
     height: 100%;
+    background: #fafafa;
 }
 
-.container {
+#viz {
     height: 100%;
+}
+
+svg {
+    height: 100%;
+    width: 100%;
+}
+
+.viz {
+    height: 100%;
+
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: 66.666667%;
+}
+
+.container-fluid {
+    height: 100%;
+    width: 33.333333%;
+    margin-left: 0;
+    margin-right: 0;
 }
 
 .panel {
     height: 100%;
     width: 100%;
+    background-color: #fafafa;
 }
 
 .row {
     padding-top: 20px;
+    height: 100%;
+}
+
+label {
+    font-weight: bold;
 }
 
 div.tooltip {
@@ -30,9 +58,10 @@ div.tooltip .name {
     font-weight: bold;
 }
 
-#county-dropdown {
+.ui.dropdown {
     margin-bottom: 20px;
 }
+
 
 .legend-title {
     font-weight: bold;

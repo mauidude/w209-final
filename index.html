@@ -11,21 +11,30 @@
 </head>
 
 <body>
-  <div class="container">
-    <section class="panel">
+  <div class="viz">
+    <div id="viz"></div>
+  </div>
+  <div class="container-fluid">
+    <section class="panel" data-viz="us">
       <div class="row">
-        <div class="col-sm-4">
+        <div class="col-sm-12">
           <p>
-            The United States is one of the world’s most attractive locations for real-estate investing. We designed the
-            following data visualizations to help aspiring investors to navigate the landscape of investing in American
-            real estate in a data-driven way. These visualizations leveraged data from the U.S. Census Bureau, Zillow,
+            The United States is one of the world’s most attractive locations for real-estate investing. We
+            designed the
+            following data visualizations to help aspiring investors to navigate the landscape of investing
+            in American
+            real estate in a data-driven way. These visualizations leveraged data from the U.S. Census
+            Bureau, Zillow,
             and
             the University of Michigan.
           </p>
           <p>
-            The adjacent choropleth can be used to explore home prices across the United States by county. Darker shades
-            of blue exhibited by a given county indicate higher mean home prices relative to lighter shades of blue.
+            The adjacent choropleth can be used to explore home prices across the United States by county.
+            Darker shades exhibited by a given county indicate higher mean home prices relative to lighter
+            shades.
           </p>
+          <p>Once you have selected a county, you may proceed to scroll down to get more detailed information
+            about your selection.</p>
           <label for="county">Select County by Name</label>
           <div id="county-dropdown" class="ui fluid search selection dropdown">
             <input type="hidden" name="county" />
@@ -35,16 +44,46 @@
             </div>
           </div>
         </div>
-        <div class="col-sm-8">
-          <div id="usChoropleth">
-          </div>
+      </div>
+    </section>
+    <section class="panel" data-viz="bar">
+      <div class="row">
+        <div class="col-sm-12">
+          <h2 class="county-selection"></h2>
+          <h3>Compared to <span class="state-selection"></span></h3>
+          <p>
+            To the right, you can see how <span class="county-selection"></span> compares with the rest of
+            <span class="state-selection"></span>. For reference, the median values of the US and
+            <span class="state-selection"></span> are shown.
+          </p>
         </div>
       </div>
     </section>
-    <section class="panel">
+    <section class="panel" data-viz="line">
       <div class="row">
-        <div class="col-sm-4">
-          <h2></h2>
+        <div class="col-sm-12">
+          <h2 class="county-selection"></h2>
+          <h3>Past and Future</h3>
+          <p>
+            Historical trends of any investment can be an indication of how it may perform in the future. To
+            the right, you can see the median home prices of <span class="county-selection"></span> over
+            time.
+          </p>
+        </div>
+      </div>
+    </section>
+    <section class="panel" data-viz="state">
+      <div class="row">
+        <div class="col-sm-12">
+          <h2 class="county-selection"></h2>
+          <h3>Other Factors</h3>
+          <p>
+            There can be many things that contribute to the value of a property. Here, we have
+            captured some of the socioeconomic factors that can affect property value. Select
+            an attribute to discover additional insights.
+          </p>
+
+          <label for="attribute">Select Attribute</label>
           <div id="attribute-dropdown" class="ui fluid search selection dropdown">
             <input type="hidden" name="attribute" />
             <i class="dropdown icon"></i>
@@ -54,10 +93,6 @@
               <div class="item" data-value="Population">Population</div>
               <div class="item" data-value="Unemployed Rate">Unemployment Rate</div>
             </div>
-          </div>
-        </div>
-        <div class="col-sm-8">
-          <div id="stateChoropleth">
           </div>
         </div>
       </div>
@@ -78,34 +113,12 @@
   <script src="https://d3js.org/d3-geo.v1.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/numeral.js/2.0.6/numeral.min.js"></script>
   <script src="//cdnjs.cloudflare.com/ajax/libs/ScrollMagic/2.0.7/ScrollMagic.min.js"></script>
-  <script src="//cdnjs.cloudflare.com/ajax/libs/ScrollMagic/2.0.7/plugins/debug.addIndicators.min.js"></script>
+  <!-- <script src="//cdnjs.cloudflare.com/ajax/libs/ScrollMagic/2.0.7/plugins/debug.addIndicators.min.js"></script> -->
+  <script src="https://unpkg.com/flubber@0.3.0"></script>
+  <script src="https://unpkg.com/d3-interpolate-path/build/d3-interpolate-path.min.js"></script>
+  <script src="js/format.js"></script>
+  <script src="js/states.js"></script>
   <script src="js/my-viz.js"></script>
-  <script>
-    $(function () { // wait for document ready
-      // init
-      var controller = new ScrollMagic.Controller({
-        globalSceneOptions: {
-          triggerHook: 'onLeave',
-          duration: "200%" // this works just fine with duration 0 as well
-          // However with large numbers (>20) of pinned sections display errors can occur so every section should be unpinned once it's covered by the next section.
-          // Normally 100% would work for this, but here 200% is used, as Panel 3 is shown for more than 100% of scrollheight due to the pause.
-        }
-      });
-
-      // get all slides
-      var slides = document.querySelectorAll("section.panel");
-
-      // create scene for every slide
-      for (var i = 0; i < slides.length; i++) {
-        new ScrollMagic.Scene({
-          triggerElement: slides[i]
-        })
-          .setPin(slides[i], { pushFollowers: false })
-          .addIndicators() // add indicators (requires plugin)
-          .addTo(controller);
-      }
-    });
-  </script>
 </body>
 
 </html>
