@@ -1,8 +1,8 @@
 $(function () {
     // fetch data
     queue()
-        .defer(d3.json, "data/us.json")
-        .defer(d3.csv, "data/merged_data.csv")
+        .defer(d3.json, "static/data/us.json")
+        .defer(d3.csv, "static/data/merged_data.csv")
         .await(dataLoaded);
 
     function dataLoaded(err, us, data) {
@@ -51,7 +51,11 @@ $(function () {
 
         // update selection on map when dropdown changes
         $('#county-dropdown').dropdown('setting', 'onChange', function (fips) {
-            renderUS(fips, false);
+            selectedFips = fips;
+
+            // get active viz
+            var viz = $('.panel.active').attr('data-viz');
+            renderActive(viz, false);
         });
 
         $('#attribute-dropdown').dropdown('setting', 'onChange', function (attribute) {
@@ -88,14 +92,33 @@ $(function () {
             bottom: 200
         };
 
-        var tooltip = d3.select("body").append("div")
+        var tooltip = d3.select("body")
+            .append("div")
             .attr("class", "tooltip")
             .style("opacity", 0);
 
-        function renderUS(selection, refresh, focus = false) {
+        function renderUS(refresh) {
+            if (selectedFips) {
+                $('.hidden').removeClass('hidden');
+                $('#scroll-indicator').addClass('flash');
+                $('.no-scroll').removeClass('no-scroll');
+            }
+
             var features = topojson.feature(us, us.objects.counties).features;
+            var stateFeatures = topojson.feature(us, us.objects.states).features;
             if (refresh) {
-                var bind = svg.selectAll('.data')
+                // remove current data
+                svg.selectAll('.data')
+                    .data([])
+                    .exit()
+                    .transition()
+                    .duration(750)
+                    .delay(() => Math.floor(Math.random() * 500))
+                    .attr('opacity', '0')
+                    .remove();
+
+                // draw county outlines
+                var bind = svg.selectAll('.data.county')
                     .data(features, d => d.id);
 
                 bind.enter()
@@ -120,7 +143,8 @@ $(function () {
                     .on('click', function () {
                         var fips = d3.select(this).attr('data-fips');
                         if (fips in fipsToData) {
-                            renderUS(fips, false);
+                            selectedFips = fips;
+                            renderUS(false);
                         }
                     })
                     .on('mouseover', function (d) {
@@ -154,6 +178,19 @@ $(function () {
                     .delay(() => Math.floor(Math.random() * 500))
                     .attr('opacity', '1');
 
+                // draw state outlines
+                bind = svg.selectAll('.state.data')
+                    .data(stateFeatures, d => d.id);
+
+                bind.enter()
+                    .append('path')
+                    .attr('class', 'data state')
+                    .attr('stroke', '#ccc')
+                    .attr('pointer-events', 'none')
+                    .attr('stroke-width', '1px')
+                    .attr('d', path)
+                    .attr('fill', 'transparent');
+
                 bind.exit()
                     .transition()
                     .duration(750)
@@ -182,7 +219,7 @@ $(function () {
                     .attr('class', 'legend')
                     .attr('transform', 'translate(100, 0)');
 
-                legend.append("rect")
+                legend.append('rect')
                     .attr('x', (d, i) => (i * 50))
                     .attr('y', 550)
                     .attr('width', 50)
@@ -202,64 +239,30 @@ $(function () {
                     .text('January 2020 Median Home Values');
             }
 
-            // remove current selection
-            svg.selectAll('path.selected')
-                .data([])
-                .exit()
-                .remove();
+            bind = svg.selectAll('.selected')
+                .data(features.filter(d => padWithLeadingZeros(d.id, 5) === selectedFips), d => d.id);
 
-            svg.selectAll('path.selected')
-                .data(features.filter(d => padWithLeadingZeros(d.id, 5) === selection))
-                .enter()
+            bind.enter()
                 .append('path')
                 .attr('d', path)
                 .attr('stroke', selectionColor)
-                .attr('stroke-width', '2')
+                .attr('stroke-width', '4')
                 .attr('class', 'selected')
                 .attr('fill', 'transparent')
-                .on('mouseover', function (d) {
-                    var fips = padWithLeadingZeros(d.id, 5);
-                    var regionData = fipsToData[fips];
-                    if (!regionData) {
-                        tooltip.transition()
-                            .duration(300)
-                            .style("opacity", 0);
-                        return;
-                    }
+                .attr('pointer-events', 'none');
 
-                    tooltip.html('');
-                    tooltip.append('div').attr('class', 'name').text(regionData['Name']);
-                    tooltip.append('div').attr('class', 'data').text(toCurrency(regionData[propertyValueColumn]));
+            bind.exit()
+                .transition()
+                .duration(750)
+                .attr('opacity', '0')
+                .remove();
 
-                    tooltip.style("left", (d3.event.pageX + 30) + "px")
-                        .style("top", (d3.event.pageY - 30) + "px");
-
-                    tooltip.transition()
-                        .duration(300)
-                        .style("opacity", 1);
-                })
-                .on('mouseout', function () {
-                    tooltip.transition()
-                        .duration(300)
-                        .style("opacity", 0);
-                });
-
-            $('#county-dropdown').dropdown('set selected', selection);
-
-            if (selection) {
-                var county = fipsToData[selection];
-                var name = county['Name'];
-                var state = county['State'];
-                var stateName = stateNames[state];
-
-                $('.county-selection').html(name);
-                $('.state-selection').html(stateName);
-                selectedFips = selection;
-            }
+            $('#county-dropdown').dropdown('set selected', selectedFips);
         }
 
         function renderBarChart() {
             var stateFips = selectedFips.substring(0, 2);
+            svg.on('mousemove', null);
 
             // filter on state and order by value descending
             var counties = data
@@ -268,11 +271,6 @@ $(function () {
 
             var stateMedian = d3.median(counties, d => d[propertyValueColumn]);
 
-            // get counties of state
-            var stateMap = topojson
-                .feature(us, us.objects.counties).features
-                .filter(x => padWithLeadingZeros(x.id, 5).substring(0, 2) === stateFips);
-
             // clear out svg
             svg.selectAll('.aux, .legend')
                 .style('opacity', '1')
@@ -280,13 +278,6 @@ $(function () {
                 .duration(750)
                 .style('opacity', '0')
                 .remove();
-
-            // make lookup for county geometry by fips code
-            var fipsToShape = {};
-            stateMap.forEach(function (d) {
-                var fips = padWithLeadingZeros(d.id, 5);
-                fipsToShape[fips] = d;
-            });
 
             // bar chart
             function countyName(c) {
@@ -309,7 +300,6 @@ $(function () {
                 .range([margin.left, width - margin.right])
                 .padding(0.1);
 
-
             bind = svg.selectAll('.data, .selected')
                 .data(counties, d => parseInt(d['FIPS']));
 
@@ -317,10 +307,11 @@ $(function () {
                 .insert('rect', ':first-child')
                 .attr('class', 'data bar')
                 .attr('height', '0')
+                .attr('data-fips', d => d['FIPS'])
                 .attr('width', d => xScale.bandwidth())
                 .attr('x', (d, i) => xScale(countyName(counties[i]['RegionName'])))
                 .attr('y', height - margin.bottom)
-                .attr('fill', d => d['FIPS'] === selectedFips ? selectionColor : 'pink')
+                .attr('fill', 'pink')
                 .on('mouseover', function (d) {
                     var fips = d['FIPS'];
                     var regionData = fipsToData[fips];
@@ -360,6 +351,33 @@ $(function () {
                 .duration(750)
                 .delay(() => Math.floor(Math.random() * 500))
                 .style('opacity', '0')
+                .remove();
+
+            bind = svg.selectAll('rect.selected')
+                .data(counties.filter(d => d['FIPS'] === selectedFips), d => d['FIPS']);
+
+            bind.enter()
+                .insert('rect', 'path.line')
+                .attr('class', 'data bar selected')
+                .attr('fill', selectionColor)
+                .attr('height', function (d) {
+                    var y = yScale(d[propertyValueColumn]);
+                    return height - y - margin.bottom;
+                })
+                .attr('width', d => xScale.bandwidth())
+                .attr('x', d => xScale(countyName(d['RegionName'])))
+                .attr('y', d => yScale(d[propertyValueColumn]))
+                .attr('opacity', '0')
+                .attr('pointer-events', 'none')
+                .transition()
+                .duration(750)
+                .attr('opacity', '1');
+
+
+            bind.exit()
+                .transition()
+                .duration(750)
+                .attr('opacity', '0')
                 .remove();
 
             // median line
@@ -540,8 +558,18 @@ $(function () {
             var fmt = d3.timeFormat('%B %Y');
             var bisectDate = d3.bisector(d => d.date).left;
 
-            path
+            svg
                 .on('mouseover', function (d) {
+                    tooltip.transition()
+                        .duration(300)
+                        .style("opacity", 1);
+                })
+                .on('mouseout', function () {
+                    tooltip.transition()
+                        .duration(300)
+                        .style("opacity", 0);
+                })
+                .on('mousemove', function () {
                     var x = xScale.invert(d3.mouse(this)[0]);
                     var i = bisectDate(propertyValues, x, 1);
 
@@ -553,15 +581,6 @@ $(function () {
 
                     tooltip.style("left", (d3.event.pageX + 30) + "px")
                         .style("top", (d3.event.pageY - 30) + "px");
-
-                    tooltip.transition()
-                        .duration(300)
-                        .style("opacity", 1);
-                })
-                .on('mouseout', function () {
-                    tooltip.transition()
-                        .duration(300)
-                        .style("opacity", 0);
                 });
 
             // draw axes
@@ -582,6 +601,7 @@ $(function () {
             }
             $('#attribute-dropdown').dropdown('set selected', attribute);
 
+            svg.on('mousemove', null);
 
             var stateFips = selectedFips.substring(0, 2);
             var stateFipsInt = parseInt(stateFips);
@@ -633,10 +653,10 @@ $(function () {
                     return d3.interpolatePath(previous, shapes[0]);
                 });
 
-            var bind = svg.selectAll('.data');
+            var bind = svg.selectAll('.data')
+                .data(counties, d => d.id);
 
-            bind.data(counties, d => d.id)
-                .enter()
+            bind.enter()
                 .insert('path', ':first-child')
                 .attr('class', 'data county')
                 .attr('d', path)
@@ -689,6 +709,12 @@ $(function () {
                 .delay(() => (immediate ? 0 : 750) + Math.floor(Math.random() * 500))
                 .attr('opacity', '1');
 
+            bind.exit()
+                .transition()
+                .delay(() => (immediate ? 0 : 750) + Math.floor(Math.random() * 500))
+                .attr('opacity', '0')
+                .remove();
+
             svg.selectAll('.aux:not(.selected)')
                 .attr('opacity', '1')
                 .transition()
@@ -704,36 +730,11 @@ $(function () {
                 .append('path')
                 .attr('d', path)
                 .attr('stroke', selectionColor)
-                .attr('stroke-width', '2')
+                .attr('stroke-width', '4')
                 .attr('class', 'selected aux')
                 .attr('fill', 'transparent')
                 .attr('opacity', '0')
-                .on('mouseover', function (d) {
-                    var fips = padWithLeadingZeros(d.id, 5);
-                    var regionData = fipsToData[fips];
-                    if (!regionData) {
-                        tooltip.transition()
-                            .duration(300)
-                            .style("opacity", 0);
-                        return;
-                    }
-
-                    tooltip.html('');
-                    tooltip.append('div').attr('class', 'name').text(regionData['Name']);
-                    tooltip.append('div').attr('class', 'data').text(fmt.fmt(regionData[attribute]));
-
-                    tooltip.style("left", (d3.event.pageX + 30) + "px")
-                        .style("top", (d3.event.pageY - 30) + "px");
-
-                    tooltip.transition()
-                        .duration(300)
-                        .style("opacity", 1);
-                })
-                .on('mouseout', function () {
-                    tooltip.transition()
-                        .duration(300)
-                        .style("opacity", 0);
-                })
+                .attr('pointer-events', 'none')
                 .transition()
                 .delay(() => (immediate ? 0 : 750) + Math.floor(Math.random() * 500))
                 .attr('opacity', '1');
@@ -775,7 +776,34 @@ $(function () {
                 .text(fmt.title);
         }
 
-        renderUS(null, true);
+        function renderActive(viz, refresh) {
+            switch (viz) {
+                case 'us':
+                    renderUS(refresh);
+                    break;
+                case 'bar':
+                    renderBarChart();
+                    break;
+
+                case 'line':
+                    renderLineChart();
+                    break;
+
+                case 'state':
+                    renderState();
+                    break;
+            }
+
+            if (selectedFips) {
+                var county = fipsToData[selectedFips];
+                var name = county['Name'];
+                var state = county['State'];
+                var stateName = stateNames[state];
+
+                $('.county-selection').html(name);
+                $('.state-selection').html(stateName);
+            }
+        }
 
         // initialize scrolling animations
         var controller = new ScrollMagic.Controller();
@@ -788,6 +816,7 @@ $(function () {
                 duration: '75%',
             })
                 .addTo(controller)
+                .setClassToggle(slides[i], 'active')
                 .on("enter leave", function (e) {
                     if (e.type !== 'enter') {
                         return;
@@ -795,22 +824,7 @@ $(function () {
                     var $target = $(e.target.triggerElement());
                     var viz = $target.attr('data-viz');
 
-                    switch (viz) {
-                        case 'us':
-                            renderUS(selectedFips, true, true);
-                            break;
-                        case 'bar':
-                            renderBarChart();
-                            break;
-
-                        case 'line':
-                            renderLineChart();
-                            break;
-
-                        case 'state':
-                            renderState();
-                            break;
-                    }
+                    renderActive(viz, true);
                 })
                 .on("start end", function (e) {
                 })
@@ -818,5 +832,13 @@ $(function () {
                     //console.log(`scroll progress ${e.progress.toFixed(3)}`);
                 });
         }
+
+        new ScrollMagic.Scene({
+            triggerElement: '#header',
+            triggerHook: 'onLeave',
+        })
+            .setPin('#header', { pushFollowers: false })
+            .setClassToggle('#header', 'header')
+            .addTo(controller);
     };
 });

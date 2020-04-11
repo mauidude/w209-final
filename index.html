@@ -4,13 +4,13 @@
 <head>
   <meta charset="utf-8">
   <title>Property Guru</title>
-  <link rel="stylesheet" href="css/bootstrap.min.css">
-  <link rel="stylesheet" href="css/semantic.min.css">
-  <link rel="stylesheet" href="css/dropdown.min.css">
-  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="static/css/bootstrap.min.css">
+  <link rel="stylesheet" href="static/css/semantic.min.css">
+  <link rel="stylesheet" href="static/css/dropdown.min.css">
+  <link rel="stylesheet" href="static/css/style.css">
 </head>
 
-<body>
+<body class="no-scroll">
   <div class="viz">
     <div id="viz"></div>
   </div>
@@ -35,18 +35,23 @@
           </p>
           <p>Once you have selected a county, you may proceed to scroll down to get more detailed information
             about your selection.</p>
-          <label for="county">Select County by Name</label>
-          <div id="county-dropdown" class="ui fluid search selection dropdown">
-            <input type="hidden" name="county" />
-            <i class="dropdown icon"></i>
-            <div class="default text">Select County</div>
-            <div class="menu">
+          <div id="header">
+            <label for="county">Type or Select County by Name</label>
+            <div id="county-dropdown" class="ui fluid search selection dropdown">
+              <input type="hidden" name="county" />
+              <i class="dropdown icon"></i>
+              <div class="default text">Select County</div>
+              <div class="menu">
+              </div>
             </div>
+          </div>
+          <div id="scroll-indicator" class="hidden">
+            <p>Scroll down to explore</p>
           </div>
         </div>
       </div>
     </section>
-    <section class="panel" data-viz="bar">
+    <section class="panel padded hidden" data-viz="bar">
       <div class="row">
         <div class="col-sm-12">
           <h2 class="county-selection"></h2>
@@ -59,7 +64,7 @@
         </div>
       </div>
     </section>
-    <section class="panel" data-viz="line">
+    <section class="panel padded hidden" data-viz="line">
       <div class="row">
         <div class="col-sm-12">
           <h2 class="county-selection"></h2>
@@ -72,7 +77,7 @@
         </div>
       </div>
     </section>
-    <section class="panel" data-viz="state">
+    <section class="panel padded hidden" data-viz="state">
       <div class="row">
         <div class="col-sm-12">
           <h2 class="county-selection"></h2>
@@ -99,11 +104,11 @@
     </section>
   </div> <!-- container -->
   <!-- page content -->
-  <script src="js/jquery-1.11.0.min.js"></script>
-  <script src="js/bootstrap.min.js"></script>
-  <script src="js/semantic.min.js"></script>
-  <script src="js/components/dropdown.min.js"></script>
-  <script src="js/d3.v4.js"></script>
+  <script src="static/js/jquery-1.11.0.min.js"></script>
+  <script src="static/js/bootstrap.min.js"></script>
+  <script src="static/js/semantic.min.js"></script>
+  <script src="static/js/components/dropdown.min.js"></script>
+  <script src="static/js/d3.v4.js"></script>
   <script src="https://d3js.org/d3-color.v1.min.js"></script>
   <script src="https://d3js.org/d3-interpolate.v1.min.js"></script>
   <script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
@@ -116,9 +121,9 @@
   <!-- <script src="//cdnjs.cloudflare.com/ajax/libs/ScrollMagic/2.0.7/plugins/debug.addIndicators.min.js"></script> -->
   <script src="https://unpkg.com/flubber@0.3.0"></script>
   <script src="https://unpkg.com/d3-interpolate-path/build/d3-interpolate-path.min.js"></script>
-  <script src="js/format.js"></script>
-  <script src="js/states.js"></script>
-  <script src="js/my-viz.js"></script>
+  <script src="static/js/format.js"></script>
+  <script src="static/js/states.js"></script>
+  <script src="static/js/my-viz.js"></script>
 </body>
 
 </html>

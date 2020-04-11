@@ -3,6 +3,10 @@ body {
     background: #fafafa;
 }
 
+.no-scroll {
+    overflow-y: hidden;
+}
+
 #viz {
     height: 100%;
 }
@@ -65,4 +69,50 @@ div.tooltip .name {
 
 .legend-title {
     font-weight: bold;
+}
+
+.header {
+    z-index: 100000;
+    background-color: #fafafa;
+}
+
+.padded {
+    padding-top: 75px;
+}
+
+.bar.selected {
+    fill: #21a4a2;
+}
+
+section.hidden {
+    display: none;
+}
+
+#scroll-indicator {
+    font-weight: bold;
+    font-size: larger;
+    text-align: center;
+    position: absolute;
+    bottom: 50px;
+    width: 100%;
+}
+
+#scroll-indicator.hidden {
+    opacity: 0;
+}
+
+.flash {
+    animation-name: flash;
+    animation-duration: 1s;
+    animation-iteration-count: 6;
+    animation-direction: alternate;
+}
+
+@keyframes flash {
+  from {
+      opacity: 0;
+    }
+  to {
+      opacity: 1;
+    }
 }
