@@ -18,6 +18,7 @@
     <section class="panel" data-viz="us">
       <div class="row">
         <div class="col-sm-12">
+          <h3>Median Home Prices by County in the US</h3>
           <p>
             The United States is one of the world’s most attractive locations for real-estate investing. We
             designed the
@@ -36,7 +37,7 @@
           <p>Once you have selected a county, you may proceed to scroll down to get more detailed information
             about your selection.</p>
           <div id="header">
-            <label for="county">Type or Select County by Name</label>
+            <label for="county">Select or Search County by Name</label>
             <div id="county-dropdown" class="ui fluid search selection dropdown">
               <input type="hidden" name="county" />
               <i class="dropdown icon"></i>
@@ -70,9 +71,10 @@
           <h2 class="county-selection"></h2>
           <h3>Past and Future</h3>
           <p>
-            Historical trends of any investment can be an indication of how it may perform in the future. To
-            the right, you can see the median home prices of <span class="county-selection"></span> over
-            time.
+            Historical trends of any investment can be an indication of how it may perform in the future.
+            To the right, you can see the median home prices of <span class="county-selection"></span> over time.
+            Note that for many counties, the median home price dropped significantly immediately prior and during the
+            great recession of the late 2000s and early 2010s.
           </p>
         </div>
       </div>
@@ -83,16 +85,18 @@
           <h2 class="county-selection"></h2>
           <h3>Other Factors</h3>
           <p>
-            There can be many things that contribute to the value of a property. Here, we have
-            captured some of the socioeconomic factors that can affect property value. Select
-            an attribute to discover additional insights.
+            There can be many things that contribute to the value of a property. Local features of the county and state
+            will always drive prices, and prices are broadly reflective of how desirable it is to live in a particular
+            area. Here, we have captured some of the socioeconomic factors that can affect property value. These factors
+            include “Crime Rate”, “Population”, and “Unemployment Rate”. Select or search for an attribute to discover
+            additional insights.
           </p>
 
           <label for="attribute">Select Attribute</label>
           <div id="attribute-dropdown" class="ui fluid search selection dropdown">
             <input type="hidden" name="attribute" />
             <i class="dropdown icon"></i>
-            <div class="default text">Select Attribute</div>
+            <div class="default text">Select or Search an Attribute</div>
             <div class="menu">
               <div class="item" data-value="CrimeRatePer100000">Crime Rate</div>
               <div class="item" data-value="Population">Population</div>

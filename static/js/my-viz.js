@@ -263,6 +263,8 @@ $(function () {
         function renderBarChart() {
             var stateFips = selectedFips.substring(0, 2);
             svg.on('mousemove', null);
+            svg.on('mouseover', null);
+            svg.on('mouseout', null);
 
             // filter on state and order by value descending
             var counties = data
@@ -602,6 +604,8 @@ $(function () {
             $('#attribute-dropdown').dropdown('set selected', attribute);
 
             svg.on('mousemove', null);
+            svg.on('mouseover', null);
+            svg.on('mouseout', null);
 
             var stateFips = selectedFips.substring(0, 2);
             var stateFipsInt = parseInt(stateFips);
